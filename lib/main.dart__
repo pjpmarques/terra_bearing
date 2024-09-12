@@ -1,0 +1,225 @@
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'dart:math';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Mountain Identifier',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MapScreen(),
+    );
+  }
+}
+
+class MapScreen extends StatefulWidget {
+  @override
+  _MapScreenState createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  GoogleMapController? mapController;
+  LatLng? _currentPosition; // Nullable to indicate no position yet
+  Location _location = Location();
+  Set<Polyline> _polylines = Set<Polyline>();
+  double? _currentBearing;
+  bool _isMapOrientedToNorth = true; // Toggle between north-up and heading-up
+
+  @override
+  void initState() {
+    super.initState();
+    _getLocationPermission();
+    _startCompass();
+  }
+
+  Future<void> _getLocationPermission() async {
+    bool _serviceEnabled;
+    PermissionStatus _permissionGranted;
+
+    // Check if location services are enabled
+    _serviceEnabled = await _location.serviceEnabled();
+    if (!_serviceEnabled) {
+      _serviceEnabled = await _location.requestService();
+      if (!_serviceEnabled) {
+        return;
+      }
+    }
+
+    // Request location permissions
+    _permissionGranted = await _location.hasPermission();
+    if (_permissionGranted == PermissionStatus.denied) {
+      _permissionGranted = await _location.requestPermission();
+      if (_permissionGranted != PermissionStatus.granted) {
+        return;
+      }
+    }
+
+    // Get current location
+    var currentLocation = await _location.getLocation();
+    setState(() {
+      _currentPosition = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+    });
+  }
+
+  // Start the compass to get the current bearing
+  void _startCompass() {
+    FlutterCompass.events?.listen((event) {
+      if (event.heading != null) {
+        setState(() {
+          _currentBearing = event.heading;
+          if (!_isMapOrientedToNorth && mapController != null) {
+            _updateCameraToHeading();
+          }
+        });
+      }
+    });
+  }
+
+  // Function to calculate a point from a location using the bearing and distance
+  LatLng _calculateEndPoint(LatLng start, double bearing, double distance) {
+    const double earthRadius = 6371000; // in meters
+    double lat1 = start.latitude * pi / 180;
+    double lon1 = start.longitude * pi / 180;
+    double brng = bearing * pi / 180;
+
+    double lat2 = asin(sin(lat1) * cos(distance / earthRadius) +
+        cos(lat1) * sin(distance / earthRadius) * cos(brng));
+    double lon2 = lon1 +
+        atan2(sin(brng) * sin(distance / earthRadius) * cos(lat1),
+            cos(distance / earthRadius) - sin(lat1) * sin(lat2));
+
+    return LatLng(lat2 * 180 / pi, lon2 * 180 / pi);
+  }
+
+  // Mark the bearing by drawing a line on the map
+  void _markBearing() {
+    if (_currentBearing != null && _currentPosition != null) {
+      LatLng endPoint =
+          _calculateEndPoint(_currentPosition!, _currentBearing!, 10000); // 10 km line
+
+      Polyline polyline = Polyline(
+        polylineId: PolylineId(DateTime.now().toIso8601String()),
+        points: [_currentPosition!, endPoint],
+        color: Colors.blue,
+        width: 5,
+      );
+
+      setState(() {
+        _polylines.add(polyline);
+      });
+    }
+  }
+
+  // Reset all bearings
+  void _resetBearings() {
+    setState(() {
+      _polylines.clear();
+    });
+  }
+
+  // Toggle between north-up and heading-up map orientation
+  void _toggleMapOrientation() {
+    setState(() {
+      _isMapOrientedToNorth = !_isMapOrientedToNorth;
+      if (_isMapOrientedToNorth) {
+        _resetCameraToNorth();
+      } else {
+        _updateCameraToHeading();
+      }
+    });
+  }
+
+  // Update the map camera to follow the current heading (bearing)
+  void _updateCameraToHeading() {
+    if (mapController != null && _currentPosition != null && _currentBearing != null) {
+      mapController!.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: _currentPosition!,
+          zoom: 15.0,
+          bearing: _currentBearing!,
+          tilt: 0,
+        ),
+      ));
+    }
+  }
+
+  // Reset the map camera to north-up orientation
+  void _resetCameraToNorth() {
+    if (mapController != null && _currentPosition != null) {
+      mapController!.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: _currentPosition!,
+          zoom: 15.0,
+          bearing: 0, // North-up
+          tilt: 0,
+        ),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        // Display only the bearing in the AppBar title
+        title: Text(
+          _currentBearing != null ? '${_currentBearing!.toStringAsFixed(1)}°' : '',
+        ),
+        actions: [
+          // Toggle button to switch map orientation
+          IconButton(
+            icon: Icon(_isMapOrientedToNorth ? Icons.explore : Icons.navigation),
+            onPressed: _toggleMapOrientation,
+          ),
+        ],
+      ),
+      body: _currentPosition == null
+          ? Center(child: CircularProgressIndicator()) // Show a loader until location is fetched
+          : Column(
+              children: [
+                // The map section
+                Expanded(
+                  child: GoogleMap(
+                    onMapCreated: _onMapCreated,
+                    initialCameraPosition: CameraPosition(
+                      target: _currentPosition!, // Use the current location as the starting point
+                      zoom: 15.0,
+                    ),
+                    myLocationEnabled: true,
+                    polylines: _polylines,
+                  ),
+                ),
+                // The bottom status bar with buttons
+                Container(
+                  padding: EdgeInsets.all(10),
+                  color: Colors.grey[200],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _markBearing,
+                        child: Text('Mark Bearing'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _resetBearings,
+                        child: Text('Reset'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+  }
+}

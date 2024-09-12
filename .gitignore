@@ -1,0 +1,70 @@
+
+# Flutter related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.idea/
+.melos/
+build/
+pubspec.lock
+
+# IntelliJ related (Also Android Studio)
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VSCode
+.vscode/
+
+# iOS related
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/.generated/
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/App.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/GeneratedPluginRegistrant.*
+*.xcuserstate
+*.xcuserdata
+
+# macOS related
+macos/Flutter/Flutter.podspec
+macos/Pods/
+macos/.generated/
+macos/Flutter/GeneratedPluginRegistrant.*
+macos/Flutter/Generated.xcconfig
+macos/Flutter/App.framework
+macos/Flutter/Flutter.framework
+
+# Android related
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea
+android/.vscode
+android/build/
+*.keystore
+*.jks
+
+# Web related
+web/manifest.json
+
+# Firebase related
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Linux related
+linux/flutter/ephemeral/
+
+# Windows related
+windows/flutter/ephemeral/
+
+# Others
+.DS_Store
+*.log
+
