@@ -27,7 +27,7 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   LatLng? _currentPosition;
-  LatLng? _fixedStartPosition;
+  LatLng? _fixedStartPosition; // This stores the fixed starting point for lines
   Location _location = Location();
   Set<Polyline> _polylines = Set<Polyline>();
   double? _currentBearing;
@@ -37,13 +37,24 @@ class _MapScreenState extends State<MapScreen> {
   Polyline? _headingLine;
   String _topBarText = "";
   MapType _currentMapType = MapType.normal;
-  Marker? _referenceMarker;
+  Marker? _referenceMarker; // For the reference marker
 
   @override
   void initState() {
     super.initState();
     _getLocationPermission();
     _startCompass();
+    _listenToLocationChanges();
+  }
+
+  void _listenToLocationChanges() {
+    _location.onLocationChanged.listen((locationData) {
+      if (locationData.latitude != null && locationData.longitude != null) {
+        setState(() {
+          _currentPosition = LatLng(locationData.latitude!, locationData.longitude!);
+        });
+      }
+    });
   }
 
   Future<void> _getLocationPermission() async {
@@ -87,10 +98,12 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Determine the starting point for lines (either the marker or the current location)
   LatLng _getStartingPoint() {
     return _referenceMarker != null ? _referenceMarker!.position : _currentPosition!;
   }
 
+  // Toggle heading line visibility
   void _toggleHeading() {
     setState(() {
       _isHeadingActive = !_isHeadingActive;
@@ -102,18 +115,20 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Add the heading line (dashed and blue) and fix the start point
   void _addHeadingLine() {
     if (_currentBearing != null) {
       if (_fixedStartPosition == null) {
-        _fixedStartPosition = _getStartingPoint();
+        _fixedStartPosition = _getStartingPoint(); // Fix the start point when the heading is marked
       }
-      LatLng endPoint = _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km
+      LatLng endPoint =
+          _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km line
 
       _headingLine = Polyline(
         polylineId: PolylineId('headingLine'),
         points: [_fixedStartPosition!, endPoint],
-        color: CupertinoColors.activeBlue,
-        patterns: [PatternItem.dash(10), PatternItem.gap(10)],
+        color: CupertinoColors.activeBlue, // Blue color for heading line
+        patterns: [PatternItem.dash(10), PatternItem.gap(10)], // Dashed pattern
         width: 5,
       );
 
@@ -123,14 +138,16 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Remove the heading line
   void _removeHeadingLine() {
     setState(() {
       _polylines.remove(_headingLine);
       _headingLine = null;
-      _fixedStartPosition = null;
+      _fixedStartPosition = null; // Reset the fixed start point
     });
   }
 
+  // Update the heading line if it's active
   void _updateHeadingLine() {
     if (_headingLine != null) {
       _removeHeadingLine();
@@ -138,12 +155,14 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Mark bearing and fix the start point when marking
   void _markBearing() {
     if (_currentBearing != null) {
       if (_fixedStartPosition == null) {
-        _fixedStartPosition = _getStartingPoint();
+        _fixedStartPosition = _getStartingPoint(); // Fix the start point when bearing is marked
       }
-      LatLng endPoint = _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000);
+      LatLng endPoint =
+          _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km line
 
       Polyline polyline = Polyline(
         polylineId: PolylineId(DateTime.now().toIso8601String()),
@@ -158,8 +177,9 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Function to calculate a point from a location using the bearing and distance
   LatLng _calculateEndPoint(LatLng start, double bearing, double distance) {
-    const double earthRadius = 6371000;
+    const double earthRadius = 6371000; // in meters
     double lat1 = start.latitude * pi / 180;
     double lon1 = start.longitude * pi / 180;
     double brng = bearing * pi / 180;
@@ -173,31 +193,38 @@ class _MapScreenState extends State<MapScreen> {
     return LatLng(lat2 * 180 / pi, lon2 * 180 / pi);
   }
 
+  // Handle long press on map
   void _onMapLongPress(LatLng latLng) {
     setState(() {
       if (_referenceMarker == null) {
+        // Add a new reference marker
         _referenceMarker = Marker(
           markerId: MarkerId('reference_marker'),
           position: latLng,
-          draggable: true,
+          draggable: true, // Make the marker draggable
         );
       } else {
+        // If the marker already exists, update its position
         _referenceMarker = _referenceMarker!.copyWith(positionParam: latLng);
       }
     });
   }
 
+  // Handle single press on map
   void _onMapTap(LatLng latLng) {
     setState(() {
+      // Remove the reference marker on single tap
       _referenceMarker = null;
     });
   }
 
+  // Reset all markers and bearings
   void _resetBearings() {
     setState(() {
       _polylines.clear();
-      _fixedStartPosition = null;
-      _referenceMarker = null;
+      _headingLine = null;
+      _referenceMarker = null; // Remove the reference marker
+      _fixedStartPosition = null; // Reset fixed start point for lines
 
       // If Heading mode is active, redraw the heading line
       if (_isHeadingActive) {
@@ -206,6 +233,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Handle tab selection
   void _onTabSelected(int index) {
     setState(() {
       _selectedIndex = index;
@@ -214,15 +242,16 @@ class _MapScreenState extends State<MapScreen> {
       } else if (index == 1) {
         _toggleHeading();
       } else if (index == 2) {
-        _showMapTypeSelector();
+        _showMapTypeSelector(); // Layer selector button
       } else if (index == 3) {
-        _toggleMapOrientation();
+        _toggleMapOrientation(); // Toggle between north-up and heading-up
       } else if (index == 4) {
         _resetBearings();
       }
     });
   }
 
+  // Handle toggling between north-up and heading-up map orientation
   void _toggleMapOrientation() {
     setState(() {
       _isMapOrientedToNorth = !_isMapOrientedToNorth;
@@ -234,6 +263,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Update the map camera to follow the current heading (bearing)
   void _updateCameraToHeading() {
     if (mapController != null && _currentPosition != null && _currentBearing != null) {
       mapController!.animateCamera(CameraUpdate.newCameraPosition(
@@ -247,19 +277,21 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Reset the map camera to north-up orientation
   void _resetCameraToNorth() {
     if (mapController != null && _currentPosition != null) {
       mapController!.animateCamera(CameraUpdate.newCameraPosition(
         CameraPosition(
           target: _currentPosition!,
           zoom: 15.0,
-          bearing: 0,
+          bearing: 0, // North-up
           tilt: 0,
         ),
       ));
     }
   }
 
+  // Show CupertinoActionSheet to select map type
   void _showMapTypeSelector() {
     showCupertinoModalPopup(
       context: context,
@@ -337,12 +369,12 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
-                  padding: EdgeInsets.only(bottom: 100),
+                  padding: EdgeInsets.only(bottom: 100), // Padding for My Location button
                   polylines: _polylines,
                   mapType: _currentMapType,
                   markers: _referenceMarker != null ? {_referenceMarker!} : {},
-                  onLongPress: _onMapLongPress,
-                  onTap: _onMapTap,
+                  onLongPress: _onMapLongPress, // Handle long press for reference marker
+                  onTap: _onMapTap, // Handle single press to remove marker
                 ),
                 Align(
                   alignment: Alignment.bottomCenter,
@@ -351,7 +383,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: CupertinoTabBar(
                       currentIndex: _selectedIndex,
                       onTap: _onTabSelected,
-                      activeColor: CupertinoColors.inactiveGray,
+                      activeColor: CupertinoColors.inactiveGray, // Always inactiveGray
                       inactiveColor: CupertinoColors.inactiveGray,
                       items: [
                         BottomNavigationBarItem(
