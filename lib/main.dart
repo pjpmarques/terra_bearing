@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
     return CupertinoApp(
       title: 'Mountain Identifier',
       theme: CupertinoThemeData(
-        primaryColor: CupertinoColors.activeBlue,
+        primaryColor: CupertinoColors.inactiveGray,
       ),
       home: MapScreen(),
     );
@@ -27,15 +27,17 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   LatLng? _currentPosition;
+  LatLng? _fixedStartPosition;
   Location _location = Location();
   Set<Polyline> _polylines = Set<Polyline>();
   double? _currentBearing;
-  bool _isMapOrientedToNorth = true; // Toggle between north-up and heading-up
-  bool _isHeadingActive = false; // Toggle for heading line
-  int _selectedIndex = 0; // Track selected tab
-  Polyline? _headingLine; // For heading line
+  bool _isMapOrientedToNorth = true;
+  bool _isHeadingActive = false;
+  int _selectedIndex = 0;
+  Polyline? _headingLine;
   String _topBarText = "";
-  MapType _currentMapType = MapType.normal; // Default map type is normal
+  MapType _currentMapType = MapType.normal;
+  Marker? _referenceMarker;
 
   @override
   void initState() {
@@ -67,19 +69,16 @@ class _MapScreenState extends State<MapScreen> {
     var currentLocation = await _location.getLocation();
     setState(() {
       _currentPosition = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-      _topBarText = _currentBearing != null
-          ? '${_currentBearing!.toStringAsFixed(1)}°'
-          : ''; // Set initial top bar text
+      _topBarText = _currentBearing != null ? '${_currentBearing!.toStringAsFixed(1)}°' : '';
     });
   }
 
-  // Start the compass to get the current bearing
   void _startCompass() {
     FlutterCompass.events?.listen((event) {
       if (event.heading != null) {
         setState(() {
           _currentBearing = event.heading;
-          _topBarText = '${_currentBearing!.toStringAsFixed(1)}°'; // Update top bar with bearing
+          _topBarText = '${_currentBearing!.toStringAsFixed(1)}°';
           if (_isHeadingActive) {
             _updateHeadingLine();
           }
@@ -88,7 +87,10 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Toggle heading line visibility
+  LatLng _getStartingPoint() {
+    return _referenceMarker != null ? _referenceMarker!.position : _currentPosition!;
+  }
+
   void _toggleHeading() {
     setState(() {
       _isHeadingActive = !_isHeadingActive;
@@ -100,17 +102,18 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Add the heading line (dashed)
   void _addHeadingLine() {
-    if (_currentBearing != null && _currentPosition != null) {
-      LatLng endPoint =
-          _calculateEndPoint(_currentPosition!, _currentBearing!, 20000); // 20 km line
+    if (_currentBearing != null) {
+      if (_fixedStartPosition == null) {
+        _fixedStartPosition = _getStartingPoint();
+      }
+      LatLng endPoint = _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km
 
       _headingLine = Polyline(
         polylineId: PolylineId('headingLine'),
-        points: [_currentPosition!, endPoint],
+        points: [_fixedStartPosition!, endPoint],
         color: CupertinoColors.activeBlue,
-        patterns: [PatternItem.dash(10), PatternItem.gap(10)], // Dashed pattern
+        patterns: [PatternItem.dash(10), PatternItem.gap(10)],
         width: 5,
       );
 
@@ -120,15 +123,14 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Remove the heading line
   void _removeHeadingLine() {
     setState(() {
       _polylines.remove(_headingLine);
       _headingLine = null;
+      _fixedStartPosition = null;
     });
   }
 
-  // Update the heading line if it's active
   void _updateHeadingLine() {
     if (_headingLine != null) {
       _removeHeadingLine();
@@ -136,15 +138,16 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Add the _markBearing method to handle bearing marking
   void _markBearing() {
-    if (_currentBearing != null && _currentPosition != null) {
-      LatLng endPoint =
-          _calculateEndPoint(_currentPosition!, _currentBearing!, 20000); // 20 km line
+    if (_currentBearing != null) {
+      if (_fixedStartPosition == null) {
+        _fixedStartPosition = _getStartingPoint();
+      }
+      LatLng endPoint = _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000);
 
       Polyline polyline = Polyline(
         polylineId: PolylineId(DateTime.now().toIso8601String()),
-        points: [_currentPosition!, endPoint],
+        points: [_fixedStartPosition!, endPoint],
         color: CupertinoColors.activeBlue,
         width: 5,
       );
@@ -155,9 +158,8 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Function to calculate a point from a location using the bearing and distance
   LatLng _calculateEndPoint(LatLng start, double bearing, double distance) {
-    const double earthRadius = 6371000; // in meters
+    const double earthRadius = 6371000;
     double lat1 = start.latitude * pi / 180;
     double lon1 = start.longitude * pi / 180;
     double brng = bearing * pi / 180;
@@ -171,7 +173,56 @@ class _MapScreenState extends State<MapScreen> {
     return LatLng(lat2 * 180 / pi, lon2 * 180 / pi);
   }
 
-  // Handle toggling between north-up and heading-up map orientation
+  void _onMapLongPress(LatLng latLng) {
+    setState(() {
+      if (_referenceMarker == null) {
+        _referenceMarker = Marker(
+          markerId: MarkerId('reference_marker'),
+          position: latLng,
+          draggable: true,
+        );
+      } else {
+        _referenceMarker = _referenceMarker!.copyWith(positionParam: latLng);
+      }
+    });
+  }
+
+  void _onMapTap(LatLng latLng) {
+    setState(() {
+      _referenceMarker = null;
+    });
+  }
+
+  void _resetBearings() {
+    setState(() {
+      _polylines.clear();
+      _fixedStartPosition = null;
+      _referenceMarker = null;
+
+      // If Heading mode is active, redraw the heading line
+      if (_isHeadingActive) {
+        _addHeadingLine();
+      }
+    });
+  }
+
+  void _onTabSelected(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 0) {
+        _markBearing();
+      } else if (index == 1) {
+        _toggleHeading();
+      } else if (index == 2) {
+        _showMapTypeSelector();
+      } else if (index == 3) {
+        _toggleMapOrientation();
+      } else if (index == 4) {
+        _resetBearings();
+      }
+    });
+  }
+
   void _toggleMapOrientation() {
     setState(() {
       _isMapOrientedToNorth = !_isMapOrientedToNorth;
@@ -183,7 +234,6 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Update the map camera to follow the current heading (bearing)
   void _updateCameraToHeading() {
     if (mapController != null && _currentPosition != null && _currentBearing != null) {
       mapController!.animateCamera(CameraUpdate.newCameraPosition(
@@ -197,47 +247,19 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Reset the map camera to north-up orientation
   void _resetCameraToNorth() {
     if (mapController != null && _currentPosition != null) {
       mapController!.animateCamera(CameraUpdate.newCameraPosition(
         CameraPosition(
           target: _currentPosition!,
           zoom: 15.0,
-          bearing: 0, // North-up
+          bearing: 0,
           tilt: 0,
         ),
       ));
     }
   }
 
-  // Handle tab selection
-  void _onTabSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-      if (index == 0) {
-        _markBearing();
-      } else if (index == 1) {
-        _toggleHeading();
-      } else if (index == 2) {
-        _showMapTypeSelector(); // Layer selector button
-      } else if (index == 3) {
-        _toggleMapOrientation();
-      } else if (index == 4) {
-        _resetBearings();
-      }
-    });
-  }
-
-  // Reset all bearings
-  void _resetBearings() {
-    setState(() {
-      _polylines.clear();
-      _headingLine = null;
-    });
-  }
-
-  // Show CupertinoActionSheet to select map type
   void _showMapTypeSelector() {
     showCupertinoModalPopup(
       context: context,
@@ -299,35 +321,38 @@ class _MapScreenState extends State<MapScreen> {
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           _topBarText,
-          style: TextStyle(fontSize: 20), // Increased text size for the heading
+          style: TextStyle(fontSize: 20),
         ),
       ),
       child: _currentPosition == null
-          ? Center(child: CupertinoActivityIndicator()) // Show a loader until location is fetched
+          ? Center(child: CupertinoActivityIndicator())
           : Stack(
               children: [
                 // The map section
                 GoogleMap(
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: CameraPosition(
-                    target: _currentPosition!, // Use the current location as the starting point
+                    target: _currentPosition!,
                     zoom: 15.0,
                   ),
                   myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  padding: EdgeInsets.only(bottom: 100),
                   polylines: _polylines,
-                  mapType: _currentMapType, // Set map type dynamically
+                  mapType: _currentMapType,
+                  markers: _referenceMarker != null ? {_referenceMarker!} : {},
+                  onLongPress: _onMapLongPress,
+                  onTap: _onMapTap,
                 ),
-                // Wrapping the CupertinoTabBar inside a Container to force vertical alignment
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    height: 100, // Set the height to 100
+                    height: 100,
                     child: CupertinoTabBar(
                       currentIndex: _selectedIndex,
                       onTap: _onTabSelected,
-                      activeColor: CupertinoColors.activeBlue, // Make icons always blue
-                      inactiveColor:
-                          CupertinoColors.activeBlue, // Keep icons blue even when inactive
+                      activeColor: CupertinoColors.inactiveGray,
+                      inactiveColor: CupertinoColors.inactiveGray,
                       items: [
                         BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.arrow_up_square),
@@ -343,7 +368,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                         BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.layers_alt),
-                          label: 'Layers', // New icon for selecting layers
+                          label: 'Layers',
                         ),
                         BottomNavigationBarItem(
                           icon: Icon(
