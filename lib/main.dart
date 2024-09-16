@@ -32,7 +32,7 @@ class _MapScreenState extends State<MapScreen> {
   Set<Polyline> _polylines = Set<Polyline>();
   double? _currentBearing;
   bool _isMapOrientedToNorth = true;
-  bool _isHeadingActive = false;
+  bool _isHeadingActive = true; // Heading line shown by default
   int _selectedIndex = 0;
   Polyline? _headingLine;
   String _topBarText = "";
@@ -52,6 +52,9 @@ class _MapScreenState extends State<MapScreen> {
       if (locationData.latitude != null && locationData.longitude != null) {
         setState(() {
           _currentPosition = LatLng(locationData.latitude!, locationData.longitude!);
+          if (_isHeadingActive && _currentBearing != null) {
+            _updateHeadingLine();
+          }
         });
       }
     });
@@ -70,7 +73,8 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     _permissionGranted = await _location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied) {
+    if (_permissionGranted == PermissionStatus.denied ||
+        _permissionGranted == PermissionStatus.deniedForever) {
       _permissionGranted = await _location.requestPermission();
       if (_permissionGranted != PermissionStatus.granted) {
         return;
@@ -81,6 +85,9 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _currentPosition = LatLng(currentLocation.latitude!, currentLocation.longitude!);
       _topBarText = _currentBearing != null ? '${_currentBearing!.toStringAsFixed(1)}°' : '';
+      if (_isHeadingActive && _currentBearing != null) {
+        _addHeadingLine();
+      }
     });
   }
 
@@ -90,7 +97,7 @@ class _MapScreenState extends State<MapScreen> {
         setState(() {
           _currentBearing = event.heading;
           _topBarText = '${_currentBearing!.toStringAsFixed(1)}°';
-          if (_isHeadingActive) {
+          if (_isHeadingActive && _currentPosition != null) {
             _updateHeadingLine();
           }
         });
@@ -117,10 +124,8 @@ class _MapScreenState extends State<MapScreen> {
 
   // Add the heading line (dashed and blue) and fix the start point
   void _addHeadingLine() {
-    if (_currentBearing != null) {
-      if (_fixedStartPosition == null) {
-        _fixedStartPosition = _getStartingPoint(); // Fix the start point when the heading is marked
-      }
+    if (_currentBearing != null && _currentPosition != null) {
+      _fixedStartPosition = _getStartingPoint(); // Fix the start point when the heading is marked
       LatLng endPoint =
           _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km line
 
@@ -141,7 +146,7 @@ class _MapScreenState extends State<MapScreen> {
   // Remove the heading line
   void _removeHeadingLine() {
     setState(() {
-      _polylines.remove(_headingLine);
+      _polylines.removeWhere((polyline) => polyline.polylineId.value == 'headingLine');
       _headingLine = null;
       _fixedStartPosition = null; // Reset the fixed start point
     });
@@ -152,15 +157,15 @@ class _MapScreenState extends State<MapScreen> {
     if (_headingLine != null) {
       _removeHeadingLine();
       _addHeadingLine();
+    } else if (_isHeadingActive) {
+      _addHeadingLine();
     }
   }
 
   // Mark bearing and fix the start point when marking
   void _markBearing() {
-    if (_currentBearing != null) {
-      if (_fixedStartPosition == null) {
-        _fixedStartPosition = _getStartingPoint(); // Fix the start point when bearing is marked
-      }
+    if (_currentBearing != null && _currentPosition != null) {
+      _fixedStartPosition = _getStartingPoint(); // Fix the start point when bearing is marked
       LatLng endPoint =
           _calculateEndPoint(_fixedStartPosition!, _currentBearing!, 20000); // 20 km line
 
@@ -207,6 +212,9 @@ class _MapScreenState extends State<MapScreen> {
         // If the marker already exists, update its position
         _referenceMarker = _referenceMarker!.copyWith(positionParam: latLng);
       }
+      if (_isHeadingActive) {
+        _updateHeadingLine();
+      }
     });
   }
 
@@ -215,6 +223,9 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       // Remove the reference marker on single tap
       _referenceMarker = null;
+      if (_isHeadingActive) {
+        _updateHeadingLine();
+      }
     });
   }
 
@@ -349,6 +360,10 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Collect all markers
+    Set<Marker> markers = {};
+    if (_referenceMarker != null) markers.add(_referenceMarker!);
+
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(
@@ -372,7 +387,7 @@ class _MapScreenState extends State<MapScreen> {
                   padding: EdgeInsets.only(bottom: 100), // Padding for My Location button
                   polylines: _polylines,
                   mapType: _currentMapType,
-                  markers: _referenceMarker != null ? {_referenceMarker!} : {},
+                  markers: markers,
                   onLongPress: _onMapLongPress, // Handle long press for reference marker
                   onTap: _onMapTap, // Handle single press to remove marker
                 ),
@@ -393,8 +408,8 @@ class _MapScreenState extends State<MapScreen> {
                         BottomNavigationBarItem(
                           icon: Icon(
                             _isHeadingActive
-                                ? CupertinoIcons.location
-                                : CupertinoIcons.location_slash,
+                                ? CupertinoIcons.location_slash
+                                : CupertinoIcons.location,
                           ),
                           label: 'Heading',
                         ),
@@ -425,5 +440,8 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    if (_isHeadingActive && _currentPosition != null && _currentBearing != null) {
+      _addHeadingLine();
+    }
   }
 }
