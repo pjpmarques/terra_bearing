@@ -237,6 +237,50 @@ class _MapScreenState extends State<MapScreen> {
     return LatLng(lat2 * 180 / pi, lon2 * 180 / pi);
   }
 
+  Future<double> _calculateDistanceBasedOnZoom(LatLng firstMarkerPosition) async {
+    if (mapController == null) {
+      return 500; // Default fallback distance
+    }
+
+    // Get the visible region of the map (LatLngBounds)
+    LatLngBounds bounds = await mapController!.getVisibleRegion();
+
+    // Calculate the distances from the first marker to each edge (north, south, east, west)
+    double distanceToNorth = _calculateDistance(
+        firstMarkerPosition, LatLng(bounds.northeast.latitude, firstMarkerPosition.longitude));
+    double distanceToSouth = _calculateDistance(
+        firstMarkerPosition, LatLng(bounds.southwest.latitude, firstMarkerPosition.longitude));
+    double distanceToEast = _calculateDistance(
+        firstMarkerPosition, LatLng(firstMarkerPosition.latitude, bounds.northeast.longitude));
+    double distanceToWest = _calculateDistance(
+        firstMarkerPosition, LatLng(firstMarkerPosition.latitude, bounds.southwest.longitude));
+
+    // Find the minimum distance
+    double minDistance =
+        min(distanceToNorth, min(distanceToSouth, min(distanceToEast, distanceToWest)));
+
+    // Return 60% of the minimum distance
+    return minDistance * 0.6;
+  }
+
+// Helper function to calculate distance between two LatLng points
+  double _calculateDistance(LatLng start, LatLng end) {
+    const double earthRadius = 6371000; // in meters
+    double lat1 = start.latitude * pi / 180;
+    double lon1 = start.longitude * pi / 180;
+    double lat2 = end.latitude * pi / 180;
+    double lon2 = end.longitude * pi / 180;
+
+    double dLat = lat2 - lat1;
+    double dLon = lon2 - lon1;
+
+    double a =
+        sin(dLat / 2) * sin(dLat / 2) + cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
   void _onMapLongPress(LatLng latLng) {
     if (_isCalibrating) {
       // Do nothing during calibration
@@ -250,7 +294,6 @@ class _MapScreenState extends State<MapScreen> {
             draggable: true,
           );
         } else {
-          // If the marker already exists, update its position
           _referenceMarker = _referenceMarker!.copyWith(positionParam: latLng);
         }
       });
@@ -405,7 +448,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  void _startCalibration() {
+  void _startCalibration() async {
     // Store whether heading mode was active
     _wasHeadingActive = _isHeadingActive;
     if (_isHeadingActive) {
@@ -416,10 +459,14 @@ class _MapScreenState extends State<MapScreen> {
     // Place the first marker at the current GPS position
     LatLng firstMarkerPosition = _currentPosition ?? LatLng(0, 0);
 
+    // Calculate the distance for the second marker based on the zoom level and the screen's edges
+    double distance = await _calculateDistanceBasedOnZoom(firstMarkerPosition);
+
     // Place the second marker in the direction the phone is pointing
     if (_currentBearing != null) {
       double adjustedBearing = (_currentBearing! + _compassOffset + 360) % 360;
-      LatLng secondMarkerPosition = _calculateEndPoint(firstMarkerPosition, adjustedBearing, 500);
+      LatLng secondMarkerPosition =
+          _calculateEndPoint(firstMarkerPosition, adjustedBearing, distance);
 
       _calibrationMarker1 = Marker(
         markerId: MarkerId('calibration_marker_1'),
@@ -467,10 +514,8 @@ class _MapScreenState extends State<MapScreen> {
       _calibrationLine = null;
       _initialCalibrationHeading = null;
       _calibrationButtonText = "Calibrate";
-      // Remove calibration-specific polylines
       _polylines.removeWhere((polyline) => polyline.polylineId.value.startsWith('calibration'));
 
-      // Restore heading mode if it was active before calibration
       if (_wasHeadingActive) {
         _isHeadingActive = true;
         _addHeadingLine();
@@ -494,7 +539,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _updateCalibrationHeadingLine() {
-    // Remove existing heading line
     _polylines.removeWhere((polyline) => polyline.polylineId.value == 'calibration_heading_line');
 
     if (_calibrationMarker1 != null && _currentBearing != null) {
@@ -532,28 +576,24 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onCalibrationButtonPressed() {
     if (_calibrationMarker1 == null || _calibrationMarker2 == null || _currentBearing == null) {
-      return; // Ensure markers and compass data are available
+      return;
     }
 
     if (_initialCalibrationHeading == null) {
-      // First press: record the initial compass heading
       _initialCalibrationHeading = (_currentBearing! + _compassOffset + 360) % 360;
       setState(() {
         _calibrationButtonText = "Calibrate: lines overlap";
         _updateTopBarText();
       });
     } else {
-      // Second press: calculate the compass offset
       double adjustedBearing = (_currentBearing! + _compassOffset + 360) % 360;
       double potentialOffset = _angleDifference(adjustedBearing, _initialCalibrationHeading!);
 
-      // Update and apply the new compass offset
       setState(() {
         _compassOffset = potentialOffset;
         _updateTopBarText();
       });
 
-      // End calibration
       _endCalibration();
     }
   }
@@ -609,7 +649,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
-                  padding: EdgeInsets.only(bottom: 100),
+                  padding: EdgeInsets.only(bottom: 100), // Add padding for Google Maps buttons
                   polylines: _polylines,
                   mapType: _currentMapType,
                   markers: markers,
@@ -620,7 +660,7 @@ class _MapScreenState extends State<MapScreen> {
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: EdgeInsets.only(bottom: 150),
+                      padding: EdgeInsets.only(bottom: 200),
                       child: CupertinoButton.filled(
                         child: Text(_calibrationButtonText),
                         onPressed: _onCalibrationButtonPressed,
