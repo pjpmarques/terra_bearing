@@ -4,6 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'dart:math';
+import 'package:camera/camera.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 void main() => runApp(MyApp());
 
@@ -50,6 +52,8 @@ class _MapScreenState extends State<MapScreen> {
   Polyline? _calibrationLine;
   String _calibrationButtonText = "Calibrate: phone aligned";
   double? _initialCalibrationHeading;
+  CameraController? _cameraController;
+  bool _isTilted = false;
 
   @override
   void initState() {
@@ -57,6 +61,39 @@ class _MapScreenState extends State<MapScreen> {
     _getLocationPermission();
     _startCompass();
     _listenToLocationChanges();
+    _initializeCamera();
+    _listenToAccelerometer();
+  }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    if (cameras.isNotEmpty) {
+      _cameraController = CameraController(cameras.first, ResolutionPreset.medium);
+      try {
+        await _cameraController!.initialize();
+        setState(() {}); // Trigger a rebuild after camera is initialized
+      } catch (e) {
+        print("Error initializing camera: $e");
+      }
+    }
+  }
+
+  void _listenToAccelerometer() {
+    accelerometerEventStream().listen((AccelerometerEvent event) {
+      double tiltAngle = atan2(event.y, event.z) * (180 / pi);
+      bool newTiltState = tiltAngle.abs() > 80; // Changed from 45 to 80 degrees
+      if (newTiltState != _isTilted) {
+        setState(() {
+          _isTilted = newTiltState;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
   }
 
   void _listenToLocationChanges() {
@@ -718,6 +755,34 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                 ),
+                if (_isTilted &&
+                    _cameraController != null &&
+                    _cameraController!.value.isInitialized)
+                  Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      height: MediaQuery.of(context).size.width * 0.8,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Stack(
+                          children: [
+                            CameraPreview(_cameraController!),
+                            Center(
+                              child: CustomPaint(
+                                painter: CrosshairPainter(),
+                                size: Size.square(MediaQuery.of(context).size.width * 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
@@ -726,4 +791,34 @@ class _MapScreenState extends State<MapScreen> {
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
   }
+}
+
+class CrosshairPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // Draw circle
+    canvas.drawCircle(center, size.width / 2, paint);
+
+    // Draw crosshair extending to the edges
+    canvas.drawLine(
+      Offset(0, center.dy),
+      Offset(size.width, center.dy),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, 0),
+      Offset(center.dx, size.height),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
