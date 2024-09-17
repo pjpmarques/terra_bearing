@@ -36,6 +36,10 @@
 	<string>We need your location to show it on the map.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to the camera to display the camera feed when the device is tilted.</string>
+
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
