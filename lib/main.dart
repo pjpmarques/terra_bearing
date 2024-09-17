@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
     return const CupertinoApp(
       title: 'Compass Calibration App',
       theme: CupertinoThemeData(
-        primaryColor: CupertinoColors.inactiveGray,
+        primaryColor: CupertinoColors.activeBlue,
       ),
       home: MapScreen(),
     );
@@ -705,7 +705,10 @@ class _MapScreenState extends State<MapScreen> {
                       padding: const EdgeInsets.only(bottom: 200),
                       child: CupertinoButton.filled(
                         onPressed: _onCalibrationButtonPressed,
-                        child: Text(_calibrationButtonText),
+                        child: Text(
+                          _calibrationButtonText,
+                          style: const TextStyle(color: CupertinoColors.white),
+                        ),
                       ),
                     ),
                   ),
