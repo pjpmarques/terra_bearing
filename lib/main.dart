@@ -8,9 +8,11 @@ import 'dart:math';
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
+    return const CupertinoApp(
       title: 'Compass Calibration App',
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.inactiveGray,
@@ -21,6 +23,8 @@ class MyApp extends StatelessWidget {
 }
 
 class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
+
   @override
   _MapScreenState createState() => _MapScreenState();
 }
@@ -28,8 +32,8 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   LatLng? _currentPosition;
-  Location _location = Location();
-  Set<Polyline> _polylines = Set<Polyline>();
+  final Location _location = Location();
+  final Set<Polyline> _polylines = <Polyline>{};
   double? _currentBearing;
   double _compassOffset = 0.0;
   bool _isMapOrientedToNorth = true;
@@ -69,22 +73,22 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _getLocationPermission() async {
-    bool _serviceEnabled;
-    PermissionStatus _permissionGranted;
+    bool serviceEnabled;
+    PermissionStatus permissionGranted;
 
-    _serviceEnabled = await _location.serviceEnabled();
-    if (!_serviceEnabled) {
-      _serviceEnabled = await _location.requestService();
-      if (!_serviceEnabled) {
+    serviceEnabled = await _location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await _location.requestService();
+      if (!serviceEnabled) {
         return;
       }
     }
 
-    _permissionGranted = await _location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied ||
-        _permissionGranted == PermissionStatus.deniedForever) {
-      _permissionGranted = await _location.requestPermission();
-      if (_permissionGranted != PermissionStatus.granted) {
+    permissionGranted = await _location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied ||
+        permissionGranted == PermissionStatus.deniedForever) {
+      permissionGranted = await _location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
         return;
       }
     }
@@ -170,7 +174,7 @@ class _MapScreenState extends State<MapScreen> {
         LatLng endPoint = _calculateEndPoint(startPoint, adjustedBearing, 20000);
 
         _headingLine = Polyline(
-          polylineId: PolylineId('headingLine'),
+          polylineId: const PolylineId('headingLine'),
           points: [startPoint, endPoint],
           color: CupertinoColors.activeBlue,
           patterns: [PatternItem.dash(10), PatternItem.gap(10)],
@@ -289,7 +293,7 @@ class _MapScreenState extends State<MapScreen> {
         if (_referenceMarker == null) {
           // Add a new reference marker
           _referenceMarker = Marker(
-            markerId: MarkerId('reference_marker'),
+            markerId: const MarkerId('reference_marker'),
             position: latLng,
             draggable: true,
           );
@@ -387,10 +391,10 @@ class _MapScreenState extends State<MapScreen> {
       context: context,
       builder: (BuildContext context) {
         return CupertinoActionSheet(
-          title: Text('Select Map Type'),
+          title: const Text('Select Map Type'),
           actions: [
             CupertinoActionSheetAction(
-              child: Text('Normal'),
+              child: const Text('Normal'),
               onPressed: () {
                 setState(() {
                   _currentMapType = MapType.normal;
@@ -399,7 +403,7 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
             CupertinoActionSheetAction(
-              child: Text('Satellite'),
+              child: const Text('Satellite'),
               onPressed: () {
                 setState(() {
                   _currentMapType = MapType.satellite;
@@ -408,7 +412,7 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
             CupertinoActionSheetAction(
-              child: Text('Terrain'),
+              child: const Text('Terrain'),
               onPressed: () {
                 setState(() {
                   _currentMapType = MapType.terrain;
@@ -417,7 +421,7 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
             CupertinoActionSheetAction(
-              child: Text('Hybrid'),
+              child: const Text('Hybrid'),
               onPressed: () {
                 setState(() {
                   _currentMapType = MapType.hybrid;
@@ -427,7 +431,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ],
           cancelButton: CupertinoActionSheetAction(
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
             onPressed: () {
               Navigator.pop(context);
             },
@@ -457,7 +461,7 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     // Place the first marker at the current GPS position
-    LatLng firstMarkerPosition = _currentPosition ?? LatLng(0, 0);
+    LatLng firstMarkerPosition = _currentPosition ?? const LatLng(0, 0);
 
     // Calculate the distance for the second marker based on the zoom level and the screen's edges
     double distance = await _calculateDistanceBasedOnZoom(firstMarkerPosition);
@@ -469,23 +473,23 @@ class _MapScreenState extends State<MapScreen> {
           _calculateEndPoint(firstMarkerPosition, adjustedBearing, distance);
 
       _calibrationMarker1 = Marker(
-        markerId: MarkerId('calibration_marker_1'),
+        markerId: const MarkerId('calibration_marker_1'),
         position: firstMarkerPosition,
         draggable: true,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         onDragEnd: (newPosition) => _onCalibrationMarkerDragEnd(
-          MarkerId('calibration_marker_1'),
+          const MarkerId('calibration_marker_1'),
           newPosition,
         ),
       );
 
       _calibrationMarker2 = Marker(
-        markerId: MarkerId('calibration_marker_2'),
+        markerId: const MarkerId('calibration_marker_2'),
         position: secondMarkerPosition,
         draggable: true,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         onDragEnd: (newPosition) => _onCalibrationMarkerDragEnd(
-          MarkerId('calibration_marker_2'),
+          const MarkerId('calibration_marker_2'),
           newPosition,
         ),
       );
@@ -527,7 +531,7 @@ class _MapScreenState extends State<MapScreen> {
   void _drawCalibrationLine() {
     if (_calibrationMarker1 != null && _calibrationMarker2 != null) {
       _calibrationLine = Polyline(
-        polylineId: PolylineId('calibration_line'),
+        polylineId: const PolylineId('calibration_line'),
         points: [_calibrationMarker1!.position, _calibrationMarker2!.position],
         color: Colors.blue,
         width: 5,
@@ -550,7 +554,7 @@ class _MapScreenState extends State<MapScreen> {
       );
 
       Polyline headingLine = Polyline(
-        polylineId: PolylineId('calibration_heading_line'),
+        polylineId: const PolylineId('calibration_heading_line'),
         points: [_calibrationMarker1!.position, endPoint],
         color: Colors.red,
         patterns: [PatternItem.dash(10), PatternItem.gap(10)],
@@ -633,11 +637,11 @@ class _MapScreenState extends State<MapScreen> {
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           _topBarText,
-          style: TextStyle(fontSize: 16),
+          style: const TextStyle(fontSize: 16),
         ),
       ),
       child: _currentPosition == null
-          ? Center(child: CupertinoActivityIndicator())
+          ? const Center(child: CupertinoActivityIndicator())
           : Stack(
               children: [
                 // The map section
@@ -649,7 +653,8 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
-                  padding: EdgeInsets.only(bottom: 100), // Add padding for Google Maps buttons
+                  padding:
+                      const EdgeInsets.only(bottom: 100), // Add padding for Google Maps buttons
                   polylines: _polylines,
                   mapType: _currentMapType,
                   markers: markers,
@@ -660,16 +665,16 @@ class _MapScreenState extends State<MapScreen> {
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: EdgeInsets.only(bottom: 200),
+                      padding: const EdgeInsets.only(bottom: 200),
                       child: CupertinoButton.filled(
-                        child: Text(_calibrationButtonText),
                         onPressed: _onCalibrationButtonPressed,
+                        child: Text(_calibrationButtonText),
                       ),
                     ),
                   ),
                 Align(
                   alignment: Alignment.bottomCenter,
-                  child: Container(
+                  child: SizedBox(
                     height: 100,
                     child: CupertinoTabBar(
                       currentIndex: _selectedIndex,
@@ -677,7 +682,7 @@ class _MapScreenState extends State<MapScreen> {
                       activeColor: CupertinoColors.inactiveGray,
                       inactiveColor: CupertinoColors.inactiveGray,
                       items: [
-                        BottomNavigationBarItem(
+                        const BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.arrow_up_square),
                           label: 'Mark',
                         ),
@@ -689,7 +694,7 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                           label: 'Heading',
                         ),
-                        BottomNavigationBarItem(
+                        const BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.layers_alt),
                           label: 'Layers',
                         ),
@@ -701,11 +706,11 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                           label: _isMapOrientedToNorth ? 'Map Align' : 'North Up',
                         ),
-                        BottomNavigationBarItem(
+                        const BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.gear_alt),
                           label: 'Calibrate',
                         ),
-                        BottomNavigationBarItem(
+                        const BottomNavigationBarItem(
                           icon: Icon(CupertinoIcons.clear_circled),
                           label: 'Reset',
                         ),
