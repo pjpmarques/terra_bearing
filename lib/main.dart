@@ -81,7 +81,7 @@ class _MapScreenState extends State<MapScreen> {
   void _listenToAccelerometer() {
     accelerometerEventStream().listen((AccelerometerEvent event) {
       double tiltAngle = atan2(event.y, event.z) * (180 / pi);
-      bool newTiltState = tiltAngle.abs() > 80; // Changed from 45 to 80 degrees
+      bool newTiltState = tiltAngle.abs() > 70;
       if (newTiltState != _isTilted) {
         setState(() {
           _isTilted = newTiltState;
