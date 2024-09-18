@@ -91,7 +91,7 @@ class MapScreen extends StatefulWidget {
 // State class for the MapScreen
 class _MapScreenState extends State<MapScreen> {
   // Various state variables for managing map, location, and compass data
-  GoogleMapController? mapController;
+  GoogleMapController? _mapController;
   LatLng? _currentPosition;
   final Location _location = Location();
   final Set<Polyline> _polylines = <Polyline>{};
@@ -353,12 +353,12 @@ class _MapScreenState extends State<MapScreen> {
 
   // Calculate the distance based on the current zoom level
   Future<double> _calculateDistanceBasedOnZoom(LatLng firstMarkerPosition) async {
-    if (mapController == null) {
+    if (_mapController == null) {
       return 500; // Default fallback distance
     }
 
     // Get the visible region of the map (LatLngBounds)
-    LatLngBounds bounds = await mapController!.getVisibleRegion();
+    LatLngBounds bounds = await _mapController!.getVisibleRegion();
 
     // Calculate the distances from the first marker to each edge (north, south, east, west)
     double distanceToNorth = _calculateDistance(
@@ -477,9 +477,9 @@ class _MapScreenState extends State<MapScreen> {
 
   // Update camera to align with current heading
   void _updateCameraToHeading() {
-    if (mapController != null && _currentPosition != null && _currentBearing != null) {
+    if (_mapController != null && _currentPosition != null && _currentBearing != null) {
       double adjustedBearing = (_currentBearing! + _compassOffset + 360) % 360;
-      mapController!.animateCamera(CameraUpdate.newCameraPosition(
+      _mapController!.animateCamera(CameraUpdate.newCameraPosition(
         CameraPosition(
           target: _currentPosition!,
           zoom: 15.0,
@@ -492,8 +492,8 @@ class _MapScreenState extends State<MapScreen> {
 
   // Reset camera orientation to north-up
   void _resetCameraToNorth() {
-    if (mapController != null && _currentPosition != null) {
-      mapController!.animateCamera(CameraUpdate.newCameraPosition(
+    if (_mapController != null && _currentPosition != null) {
+      _mapController!.animateCamera(CameraUpdate.newCameraPosition(
         CameraPosition(
           target: _currentPosition!,
           zoom: 15.0,
@@ -884,7 +884,7 @@ class _MapScreenState extends State<MapScreen> {
 
   // Callback when the map is created
   void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+    _mapController = controller;
   }
 }
 
