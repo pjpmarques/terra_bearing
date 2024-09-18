@@ -62,7 +62,7 @@ precise navigation information.
 */
 
 // Main entry point of the application
-void main() => runApp(MyApp());
+void main() => runApp(const MyApp());
 
 // Root widget of the application
 class MyApp extends StatelessWidget {

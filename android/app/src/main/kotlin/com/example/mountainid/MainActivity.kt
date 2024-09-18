@@ -1,4 +1,4 @@
-package com.example.mountainid
+package pmarques.eu.terrabearing
 
 import io.flutter.embedding.android.FlutterActivity
 

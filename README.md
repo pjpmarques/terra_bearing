@@ -1,16 +1,14 @@
-# mountainid
+# Terra Bearing: Advanced Bearing Measurement Application
 
-A new Flutter project.
+## Purpose
+This application is designed for outdoor enthusiasts, surveyors, and navigation professionals who require precise compass calibration and bearing measurements. It combines GPS, magnetometer, and accelerometer data to provide accurate directional information, especially useful in areas with magnetic anomalies or when using devices with varying magnetic sensors. It also allows to  triangulate bearings between two points on the map so that users can identify features (e.g., mountains, buildings, trees) on the terrain.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Key Functionalities
+1. Real-time compass display with offset calibration
+2. GPS-based location tracking and map integration
+3. Bearing measurement and visual marking on the map
+4. Advanced compass calibration process
+5. Toggleable map orientation (North-up vs. Heading-up)
+6. Multiple map layer options (Normal, Satellite, Terrain, Hybrid)
+7. Camera view integration for visual alignment during measurements
+8. Tilt detection for optimal device positioning

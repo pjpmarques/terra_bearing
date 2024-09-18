@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mountainid</string>
+	<string>terrabearing</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -28,18 +28,19 @@
 	<string>AIzaSyDpnkojPJEfQzopZqIgnDmkpzWEDjJewRY</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to the camera to display the camera feed when the device is tilted.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to show it on the map.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We need your location to show it on the map.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show it on the map.</string>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app does not use the microphone. When we use the camera to mark bearings, iOS also assumes the mic will be used.</string>
+
+    <key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to the camera to display the camera feed when the device is tilted.</string>
-
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
