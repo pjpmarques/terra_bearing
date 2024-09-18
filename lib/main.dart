@@ -7,15 +7,71 @@ import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+/*
+Terra Bearing: Advanced Bearing Measurement Application
+
+Purpose:
+This application is designed for outdoor enthusiasts, surveyors, and navigation professionals
+who require precise compass calibration and bearing measurements. It combines GPS, magnetometer,
+and accelerometer data to provide accurate directional information, especially useful in areas
+with magnetic anomalies or when using devices with varying magnetic sensors. It also allows to 
+triangulate bearings between two points on the map so that users can identify features (e.g.,
+mountains, buildings, trees) on the terrain.
+
+Key Functionalities:
+1. Real-time compass display with offset calibration
+2. GPS-based location tracking and map integration
+3. Bearing measurement and visual marking on the map
+4. Advanced compass calibration process
+5. Toggleable map orientation (North-up vs. Heading-up)
+6. Multiple map layer options (Normal, Satellite, Terrain, Hybrid)
+7. Camera view integration for visual alignment during measurements
+8. Tilt detection for optimal device positioning
+
+Main Classes:
+1. MyApp: The root widget of the application, sets up the app theme and initial route.
+2. MapScreen: The primary stateful widget that contains the main UI and logic.
+3. _MapScreenState: Manages the state and implements the core functionality of the app.
+4. CrosshairPainter: A custom painter for drawing the crosshair overlay.
+
+Key State Variables and Their Purposes:
+- _currentPosition (LatLng): Stores the current GPS location of the device.
+- _currentBearing (double): Holds the current compass bearing.
+- _compassOffset (double): Stores the calibration offset for the compass.
+- _isMapOrientedToNorth (bool): Tracks whether the map is oriented to north or the current heading.
+- _isHeadingActive (bool): Indicates if the real-time heading line is being displayed.
+- _isCalibrating (bool): Flags whether the app is currently in calibration mode.
+- _polylines (Set<Polyline>): Stores all polylines drawn on the map (headings, calibration lines).
+- _referenceMarker (Marker): Represents a user-placed reference point on the map.
+- _calibrationMarker1 and _calibrationMarker2 (Marker): Used during the calibration process.
+- _initialCalibrationHeading (double): Stores the initial heading during calibration.
+- _cameraController (CameraController): Manages the device's camera for the overlay view.
+- _isTilted (bool): Indicates whether the device is tilted beyond a certain threshold.
+
+Main Logic Flow:
+1. The app initializes by setting up location services, compass listening, and camera.
+2. It continuously updates the current position and bearing as the user moves.
+3. Users can mark bearings, which are displayed as lines on the map.
+4. The calibration process involves setting two points and aligning the device to calculate offset.
+5. Map orientation and type can be changed through the UI controls.
+6. The app detects device tilt and displays a camera view for alignment when tilted significantly.
+
+This application serves as a comprehensive tool for accurate bearing measurements and
+compass calibration, suitable for both professional use and outdoor enthusiasts requiring
+precise navigation information.
+*/
+
+// Main entry point of the application
 void main() => runApp(MyApp());
 
+// Root widget of the application
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const CupertinoApp(
-      title: 'Compass Calibration App',
+      title: 'Terra Bearing',
       theme: CupertinoThemeData(
         primaryColor: CupertinoColors.activeBlue,
       ),
@@ -24,6 +80,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Main screen widget containing the map and compass functionality
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -31,7 +88,9 @@ class MapScreen extends StatefulWidget {
   _MapScreenState createState() => _MapScreenState();
 }
 
+// State class for the MapScreen
 class _MapScreenState extends State<MapScreen> {
+  // Various state variables for managing map, location, and compass data
   GoogleMapController? mapController;
   LatLng? _currentPosition;
   final Location _location = Location();
@@ -41,7 +100,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isMapOrientedToNorth = true;
   bool _isHeadingActive = true;
   bool _isCalibrating = false;
-  bool _wasHeadingActive = false; // To store previous heading mode state
+  bool _wasHeadingActive = false;
   int _selectedIndex = 0;
   Polyline? _headingLine;
   String _topBarText = "";
@@ -58,6 +117,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize various components of the app
     _getLocationPermission();
     _startCompass();
     _listenToLocationChanges();
@@ -65,6 +125,7 @@ class _MapScreenState extends State<MapScreen> {
     _listenToAccelerometer();
   }
 
+  // Initialize the device camera
   Future<void> _initializeCamera() async {
     final cameras = await availableCameras();
     if (cameras.isNotEmpty) {
@@ -78,6 +139,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Listen to accelerometer events to detect device tilt
   void _listenToAccelerometer() {
     accelerometerEventStream().listen((AccelerometerEvent event) {
       double tiltAngle = atan2(event.y, event.z) * (180 / pi);
@@ -96,6 +158,7 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
+  // Listen to location changes and update the current position
   void _listenToLocationChanges() {
     _location.onLocationChanged.listen((locationData) {
       if (locationData.latitude != null && locationData.longitude != null) {
@@ -109,6 +172,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Request location permissions and get initial location
   Future<void> _getLocationPermission() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -139,6 +203,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Start listening to compass events
   void _startCompass() {
     FlutterCompass.events?.listen((event) {
       if (event.heading != null) {
@@ -164,6 +229,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Update the text displayed in the top bar
   void _updateTopBarText() {
     if (_currentBearing == null) return;
 
@@ -181,6 +247,7 @@ class _MapScreenState extends State<MapScreen> {
     _topBarText = '${adjustedBearing.toStringAsFixed(1)}°$compensationText';
   }
 
+  // Get the starting point for drawing lines (either reference marker or current position)
   LatLng? _getStartingPoint() {
     if (_referenceMarker != null) {
       return _referenceMarker!.position;
@@ -191,6 +258,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Toggle the heading line on/off
   void _toggleHeading() {
     setState(() {
       _isHeadingActive = !_isHeadingActive;
@@ -202,6 +270,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Add a heading line to the map
   void _addHeadingLine() {
     if (_currentBearing != null) {
       LatLng? startPoint = _getStartingPoint();
@@ -225,6 +294,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Remove the heading line from the map
   void _removeHeadingLine() {
     setState(() {
       _polylines.remove(_headingLine);
@@ -232,6 +302,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Update the heading line on the map
   void _updateHeadingLine() {
     if (_currentBearing != null) {
       LatLng? startPoint = _getStartingPoint();
@@ -242,6 +313,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Mark the current bearing on the map
   void _markBearing() {
     if (_currentBearing != null) {
       LatLng? startPoint = _getStartingPoint();
@@ -263,6 +335,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Calculate the end point given a start point, bearing, and distance
   LatLng _calculateEndPoint(LatLng start, double bearing, double distance) {
     const double earthRadius = 6371000; // in meters
     double bearingRad = bearing * pi / 180;
@@ -278,6 +351,7 @@ class _MapScreenState extends State<MapScreen> {
     return LatLng(lat2 * 180 / pi, lon2 * 180 / pi);
   }
 
+  // Calculate the distance based on the current zoom level
   Future<double> _calculateDistanceBasedOnZoom(LatLng firstMarkerPosition) async {
     if (mapController == null) {
       return 500; // Default fallback distance
@@ -304,7 +378,7 @@ class _MapScreenState extends State<MapScreen> {
     return minDistance * 0.6;
   }
 
-// Helper function to calculate distance between two LatLng points
+  // Calculate the distance between two LatLng points
   double _calculateDistance(LatLng start, LatLng end) {
     const double earthRadius = 6371000; // in meters
     double lat1 = start.latitude * pi / 180;
@@ -322,6 +396,7 @@ class _MapScreenState extends State<MapScreen> {
     return earthRadius * c;
   }
 
+  // Handle long press on the map (place reference marker)
   void _onMapLongPress(LatLng latLng) {
     if (_isCalibrating) {
       // Do nothing during calibration
@@ -341,6 +416,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Handle tap on the map (remove reference marker)
   void _onMapTap(LatLng latLng) {
     if (_isCalibrating) {
       // Do nothing during calibration
@@ -351,6 +427,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Reset all bearings and markers on the map
   void _resetBearings() {
     setState(() {
       _polylines.clear();
@@ -362,6 +439,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Handle tab selection in the bottom navigation bar
   void _onTabSelected(int index) {
     if (_isCalibrating && index != 4) {
       // Ignore other button presses during calibration except "Calibrate"
@@ -385,6 +463,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Toggle map orientation between north-up and heading-up
   void _toggleMapOrientation() {
     setState(() {
       _isMapOrientedToNorth = !_isMapOrientedToNorth;
@@ -396,6 +475,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Update camera to align with current heading
   void _updateCameraToHeading() {
     if (mapController != null && _currentPosition != null && _currentBearing != null) {
       double adjustedBearing = (_currentBearing! + _compassOffset + 360) % 360;
@@ -410,6 +490,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Reset camera orientation to north-up
   void _resetCameraToNorth() {
     if (mapController != null && _currentPosition != null) {
       mapController!.animateCamera(CameraUpdate.newCameraPosition(
@@ -423,6 +504,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Show map type selector
   void _showMapTypeSelector() {
     showCupertinoModalPopup(
       context: context,
@@ -478,6 +560,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Toggle calibration mode
   void _toggleCalibrationMode() {
     setState(() {
       _isCalibrating = !_isCalibrating;
@@ -489,6 +572,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Start the calibration process
   void _startCalibration() async {
     // Store whether heading mode was active
     _wasHeadingActive = _isHeadingActive;
@@ -547,6 +631,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // End the calibration process
   void _endCalibration() {
     setState(() {
       _isCalibrating = false;
@@ -565,6 +650,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Draw the calibration line on the map
   void _drawCalibrationLine() {
     if (_calibrationMarker1 != null && _calibrationMarker2 != null) {
       _calibrationLine = Polyline(
@@ -579,6 +665,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Update the calibration heading line
   void _updateCalibrationHeadingLine() {
     _polylines.removeWhere((polyline) => polyline.polylineId.value == 'calibration_heading_line');
 
@@ -604,6 +691,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Handle drag end for calibration markers
   void _onCalibrationMarkerDragEnd(MarkerId markerId, LatLng newPosition) {
     setState(() {
       if (_calibrationMarker1 != null && markerId == _calibrationMarker1!.markerId) {
@@ -615,6 +703,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Handle calibration button press
   void _onCalibrationButtonPressed() {
     if (_calibrationMarker1 == null || _calibrationMarker2 == null || _currentBearing == null) {
       return;
@@ -639,11 +728,13 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  // Calculate the difference between two angles
   double _angleDifference(double angle1, double angle2) {
     double difference = (angle1 - angle2 + 540) % 360 - 180;
     return difference;
   }
 
+  // Calculate the bearing between two points
   double _calculateBearingBetweenPoints(LatLng start, LatLng end) {
     double lat1 = start.latitude * pi / 180;
     double lon1 = start.longitude * pi / 180;
@@ -791,33 +882,31 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Callback when the map is created
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
   }
 }
 
+// Custom painter for drawing a crosshair
 class CrosshairPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
+      ..strokeWidth = 2.0;
 
     final center = Offset(size.width / 2, size.height / 2);
+    final crossSize = size.width * 0.2;
 
-    // Draw circle
-    canvas.drawCircle(center, size.width / 2, paint);
-
-    // Draw crosshair extending to the edges
     canvas.drawLine(
-      Offset(0, center.dy),
-      Offset(size.width, center.dy),
+      Offset(center.dx - crossSize, center.dy),
+      Offset(center.dx + crossSize, center.dy),
       paint,
     );
     canvas.drawLine(
-      Offset(center.dx, 0),
-      Offset(center.dx, size.height),
+      Offset(center.dx, center.dy - crossSize),
+      Offset(center.dx, center.dy + crossSize),
       paint,
     );
   }
