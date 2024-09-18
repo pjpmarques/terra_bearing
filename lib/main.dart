@@ -129,7 +129,7 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _initializeCamera() async {
     final cameras = await availableCameras();
     if (cameras.isNotEmpty) {
-      _cameraController = CameraController(cameras.first, ResolutionPreset.medium);
+      _cameraController = CameraController(cameras.first, ResolutionPreset.max);
       try {
         await _cameraController!.initialize();
         setState(() {}); // Trigger a rebuild after camera is initialized
@@ -865,11 +865,14 @@ class _MapScreenState extends State<MapScreen> {
                         borderRadius: BorderRadius.circular(20),
                         child: Stack(
                           children: [
-                            CameraPreview(_cameraController!),
+                            AspectRatio(
+                              aspectRatio: 1.0,
+                              child: CameraPreview(_cameraController!),
+                            ),
                             Center(
                               child: CustomPaint(
                                 painter: CrosshairPainter(),
-                                size: Size.square(MediaQuery.of(context).size.width * 0.6),
+                                size: Size.square(MediaQuery.of(context).size.width),
                               ),
                             ),
                           ],
@@ -894,21 +897,26 @@ class CrosshairPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
 
     final center = Offset(size.width / 2, size.height / 2);
-    final crossSize = size.width * 0.2;
 
+    // Draw full-size crosshair
     canvas.drawLine(
-      Offset(center.dx - crossSize, center.dy),
-      Offset(center.dx + crossSize, center.dy),
+      Offset(0, center.dy),
+      Offset(size.width, center.dy),
       paint,
     );
     canvas.drawLine(
-      Offset(center.dx, center.dy - crossSize),
-      Offset(center.dx, center.dy + crossSize),
+      Offset(center.dx, 0),
+      Offset(center.dx, size.height),
       paint,
     );
+
+    // Draw circle with diameter 2/3 of the square's width
+    final circleRadius = size.width / 3;
+    canvas.drawCircle(center, circleRadius, paint);
   }
 
   @override
