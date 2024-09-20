@@ -7,7 +7,7 @@ This application is designed for outdoor enthusiasts, surveyors, and navigation 
 Currently only iPhone is supported.
 
 ### Key Functionalities
->>>>>>> main
+
 1. Real-time compass display with offset calibration
 2. GPS-based location tracking and map integration
 3. Bearing measurement and visual marking on the map
@@ -16,8 +16,6 @@ Currently only iPhone is supported.
 6. Multiple map layer options (Normal, Satellite, Terrain, Hybrid)
 7. Camera view integration for visual alignment during measurements
 8. Tilt detection for optimal device positioning
-<<<<<<< HEAD
-=======
 
 ### License
 
