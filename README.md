@@ -19,7 +19,7 @@ Currently only iPhone is supported.
 
 ### Notes
 
-You will need to add a GoogleMaps API key to the Info.plist file before building/running the code. Change it here:
+You will need to add a GoogleMaps API key to the ```ios/Runner/Info.plist``` file before building/running the code. Here's the relevant line:
 
 ```
 	<key>GMSApiKey</key>
