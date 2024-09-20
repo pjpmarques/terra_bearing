@@ -17,6 +17,15 @@ Currently only iPhone is supported.
 7. Camera view integration for visual alignment during measurements
 8. Tilt detection for optimal device positioning
 
+### Notes
+
+You will need to add a GoogleMaps API key to the Info.plist file before building/running the code. Change it here:
+
+```
+	<key>GMSApiKey</key>
+	<string>PLEASE_ADD_YOUR_API_KEY_HERE</string>
+```
+
 ### License
 
 [Apache 2.0](LICENSE)
