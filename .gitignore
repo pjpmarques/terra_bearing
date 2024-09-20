@@ -64,6 +64,9 @@ linux/flutter/ephemeral/
 # Windows related
 windows/flutter/ephemeral/
 
+# Secrets
+*.with_secret
+
 # Others
 .DS_Store
 *.log
