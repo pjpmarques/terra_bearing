@@ -12,3 +12,7 @@ This application is designed for outdoor enthusiasts, surveyors, and navigation 
 6. Multiple map layer options (Normal, Satellite, Terrain, Hybrid)
 7. Camera view integration for visual alignment during measurements
 8. Tilt detection for optimal device positioning
+
+## License
+[Apache 2.0](LICENSE)
+
